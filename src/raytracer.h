@@ -44,8 +44,8 @@ typedef int16_t fixed8_t;
  * CAMERA VIEWS
  *============================================================================*/
 
-#define VIEW_FRONT      0   /* Down button - original view */
-#define VIEW_BACK       1   /* Up button - behind sphere */
+#define VIEW_FRONT      0   /* Down button - close view (sphere at 6 units) */
+#define VIEW_BACK       1   /* Up button - far view (sphere at 12 units) */
 #define NUM_VIEWS       2
 
 /*============================================================================

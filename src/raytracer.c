@@ -19,9 +19,10 @@
 static uint8_t scene_buffer[NUM_VIEWS][SCENE_SIZE];
 static uint8_t tile_row_buffer[RENDER_TILES_X * 16];
 
-/* Current view affects light direction for back view */
-static int8_t light_dir_x = -1;  /* -1 for front, +1 for back */
-static int8_t light_dir_z = 1;   /* +1 for front, -1 for back */
+/* Current view affects light direction and sphere distance */
+static int8_t light_dir_x = -1;  /* -1 for front (left), +1 for back (right) */
+static int8_t light_dir_z = 1;
+static int16_t sphere_cz = SPHERE_CZ;  /* View-dependent: 6 for close, 12 for far */
 
 /*============================================================================
  * OPTIMIZATION 1: LOOKUP TABLES FOR SPHERE INTERSECTION
@@ -107,11 +108,11 @@ static uint8_t dither(uint8_t brightness, uint8_t dark_color, uint8_t bright_col
  * INITIALIZATION: BUILD LUTs AND PRECOMPUTED ARRAYS
  *============================================================================*/
 
-static void init_luts(void) {
-    /* oc_dot_d is constant: oc_y_fp=0, oc_z_fp=SPHERE_CZ<<8, dz_fp=256 */
-    int16_t oc_z_fp = SPHERE_CZ << FX8_SHIFT;
+static void init_sphere_luts(void) {
+    /* oc_dot_d depends on sphere_cz (view-dependent) */
+    int16_t oc_z_fp = sphere_cz << FX8_SHIFT;
     int16_t dz_fp = FX8_ONE;
-    oc_dot_d_constant = (int16_t)(((int32_t)oc_z_fp * dz_fp) >> FX8_SHIFT);  /* 1536 */
+    oc_dot_d_constant = (int16_t)(((int32_t)oc_z_fp * dz_fp) >> FX8_SHIFT);
     
     /* Build quantized LUTs for sphere intersection divisions */
     for (uint8_t i = 0; i < LUT_SIZE; i++) {
@@ -223,29 +224,30 @@ static void init_shadow_scanlines(void) {
 
 void raytracer_set_view(uint8_t view_id) {
     if (view_id == VIEW_FRONT) {
-        /* Light from upper-left-front */
+        /* Close view: sphere at normal distance */
+        sphere_cz = SPHERE_CZ;      /* 6 units away */
         light_dir_x = -1;
         light_dir_z = 1;
     } else {
-        /* Back view: flip light X direction */
-        light_dir_x = 1;
+        /* Far view: sphere slightly farther (appears smaller) */
+        sphere_cz = 8;              /* 8 units away */
+        light_dir_x = -1;           /* Same light direction */
         light_dir_z = 1;
     }
     
+    /* Rebuild sphere LUTs for new distance (fast - only 64 entries) */
+    init_sphere_luts();
+    
     /* OPTIMIZATION 5: Precompute shadow constants (removes per-pixel division!) */
-    /* t_shadow = (SPHERE_CY << 16) / LIGHT_Y -- computed ONCE per view */
     int32_t t_shadow = ((int32_t)SPHERE_CY << 16) / LIGHT_Y;
     
     /* shadow_center = sphere_pos + (-light_dir * t_shadow) */
     shadow_center_x_const = (int16_t)((SPHERE_CX << FX8_SHIFT) + 
                             (((-light_dir_x * LIGHT_X) * t_shadow) >> FX8_SHIFT));
-    shadow_center_z_const = (int16_t)((SPHERE_CZ << FX8_SHIFT) + 
+    shadow_center_z_const = (int16_t)((sphere_cz << FX8_SHIFT) + 
                             (((-light_dir_z * LIGHT_Z) * t_shadow) >> FX8_SHIFT));
     
-    /* Rebuild scanline LUTs */
-    init_ground_scanlines();
-    
-    /* OPTIMIZATION 6: Rebuild per-scanline shadow terms */
+    /* OPTIMIZATION 6: Rebuild per-scanline shadow terms for new shadow center */
     init_shadow_scanlines();
 }
 
@@ -274,7 +276,7 @@ static uint8_t trace_ray(uint8_t px, uint8_t py) {
     int32_t proj_sq = (int32_t)lut_proj_sq[lut_index];
     
     /* Sphere intersection test */
-    int32_t oc_sq = SPHERE_CZ * SPHERE_CZ;
+    int32_t oc_sq = (int32_t)sphere_cz * sphere_cz;
     int32_t dist_sq_fp = (oc_sq << FX8_SHIFT) - proj_sq;
     int32_t radius_sq_fp = SPHERE_R_SQ << FX8_SHIFT;
     
@@ -292,7 +294,7 @@ static uint8_t trace_ray(uint8_t px, uint8_t py) {
     
     if (hit_ground) {
         ground_x = (int16_t)(((int32_t)dx_fp * t_ground) >> FX8_SHIFT);
-        ground_z = (int16_t)(((int32_t)dz_fp * t_ground) >> FX8_SHIFT);
+        ground_z = scanline_ground_z[py];
     }
     
     /*=== SPHERE SHADING ===*/
@@ -304,7 +306,7 @@ static uint8_t trace_ray(uint8_t px, uint8_t py) {
         /* Normal = hit point - sphere center */
         int16_t nx = hx;
         int16_t ny = hy - (SPHERE_CY << FX8_SHIFT);
-        int16_t nz = hz - (SPHERE_CZ << FX8_SHIFT);
+        int16_t nz = hz - (sphere_cz << FX8_SHIFT);
         nx >>= 1;
         ny >>= 1;
         nz >>= 1;
@@ -455,8 +457,13 @@ void raytracer_load_scene(uint8_t view_id) {
  *============================================================================*/
 
 void raytracer_init(void) {
+    /* Initialize sphere to front view distance */
+    sphere_cz = SPHERE_CZ;
+    light_dir_x = -1;
+    light_dir_z = 1;
+    
     /* Initialize all LUTs and precomputed arrays once at startup */
-    init_luts();
+    init_sphere_luts();
     init_shadow_lut();
     init_dx_dy_arrays();
     init_ground_scanlines();
