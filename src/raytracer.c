@@ -359,6 +359,9 @@ static uint8_t trace_ray(uint8_t px, uint8_t py) {
  * TILE GENERATION & STORAGE
  *============================================================================*/
 
+/* Small buffer for one scanline (12 tiles × 2 bytes = 24 bytes) */
+static uint8_t scanline_buffer[RENDER_TILES_X * 2];
+
 void raytracer_render_row(uint8_t tile_row) {
     uint8_t base_py = tile_row * 8;
     
@@ -383,6 +386,50 @@ void raytracer_render_row(uint8_t tile_row) {
             tile_data[row * 2 + 1] = high_bits;
         }
     }
+}
+
+/*============================================================================
+ * SCANLINE-BY-SCANLINE RENDERING (smoother visual feedback)
+ *============================================================================*/
+
+void raytracer_render_scanline(uint8_t py) {
+    /* Clear tile buffer at start of each tile row */
+    if ((py & 7) == 0) {
+        memset(tile_row_buffer, 0, RENDER_TILES_X * 16);
+    }
+    
+    /* Render one horizontal line (96 pixels) into scanline_buffer */
+    for (uint8_t tx = 0; tx < RENDER_TILES_X; tx++) {
+        uint8_t low_bits = 0;
+        uint8_t high_bits = 0;
+        uint8_t base_px = tx * 8;
+        
+        for (uint8_t col = 0; col < 8; col++) {
+            uint8_t color = trace_ray(base_px + col, py);
+            uint8_t bit_pos = 7 - col;
+            
+            if (color & 0x01) low_bits  |= (1 << bit_pos);
+            if (color & 0x02) high_bits |= (1 << bit_pos);
+        }
+        
+        scanline_buffer[tx * 2]     = low_bits;
+        scanline_buffer[tx * 2 + 1] = high_bits;
+        
+        /* Also store into tile_row_buffer for scene storage */
+        uint8_t row_in_tile = py & 7;
+        tile_row_buffer[tx * 16 + row_in_tile * 2]     = low_bits;
+        tile_row_buffer[tx * 16 + row_in_tile * 2 + 1] = high_bits;
+    }
+}
+
+void raytracer_upload_scanline(uint8_t py) {
+    /* Upload the current tile row's accumulated data to VRAM */
+    /* Since we build tile_row_buffer scanline by scanline, upload after each */
+    uint8_t tile_row = py / 8;
+    uint8_t tile_start = RENDER_TILE_BASE + tile_row * RENDER_TILES_X;
+    
+    /* Upload all tiles in this row (their partial data so far) */
+    set_bkg_data(tile_start, RENDER_TILES_X, tile_row_buffer);
 }
 
 void raytracer_upload_row(uint8_t tile_row) {

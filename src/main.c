@@ -34,11 +34,11 @@ static void init_progress_tile(void) {
     set_bkg_data(TILE_PROGRESS, 1, progress_tile);
 }
 
-static void show_progress(uint8_t view, uint8_t row) {
-    /* Progress: view * 12 + row out of 24 total */
-    uint8_t total = NUM_VIEWS * RENDER_TILES_Y;
-    uint8_t current = view * RENDER_TILES_Y + row;
-    uint8_t filled = (uint8_t)(((uint16_t)current * PROGRESS_WIDTH) / total);
+static void show_progress_scanline(uint8_t view, uint8_t scanline) {
+    /* Progress: view * 96 + scanline out of 192 total scanlines */
+    uint16_t total = NUM_VIEWS * RENDER_HEIGHT;
+    uint16_t current = view * RENDER_HEIGHT + scanline;
+    uint8_t filled = (uint8_t)((current * PROGRESS_WIDTH) / total);
     
     uint8_t bar[PROGRESS_WIDTH];
     for (uint8_t i = 0; i < PROGRESS_WIDTH; i++) {
@@ -56,18 +56,29 @@ static void clear_progress(void) {
 }
 
 /*============================================================================
- * RENDER ONE VIEW
+ * RENDER ONE VIEW (SCANLINE-BY-SCANLINE for smooth visual feedback)
  *============================================================================*/
 
 static void render_view(uint8_t view_id) {
     raytracer_set_view(view_id);
     
-    for (uint8_t row = 0; row < RENDER_TILES_Y; row++) {
-        raytracer_render_row(row);
-        raytracer_store_row(view_id, row);
-        show_progress(view_id, row + 1);
+    /* Render 96 scanlines, one at a time */
+    for (uint8_t py = 0; py < RENDER_HEIGHT; py++) {
+        /* Render single scanline */
+        raytracer_render_scanline(py);
+        
+        /* Update progress bar */
+        show_progress_scanline(view_id, py + 1);
+        
+        /* Wait for VBlank and upload scanline */
         wait_vbl_done();
-        raytracer_upload_row(row);
+        raytracer_upload_scanline(py);
+        
+        /* When we complete a tile row (every 8 scanlines), store it */
+        if ((py & 7) == 7) {
+            uint8_t tile_row = py / 8;
+            raytracer_store_row(view_id, tile_row);
+        }
     }
 }
 

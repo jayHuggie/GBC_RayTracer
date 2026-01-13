@@ -83,11 +83,17 @@ void raytracer_init(void);
 /* Set camera angle for rendering (0=front, 64=right, 128=back, 192=left) */
 void raytracer_set_view(uint8_t view_id);
 
-/* Render one row of the current view */
+/* Render one tile row (8 scanlines) of the current view */
 void raytracer_render_row(uint8_t tile_row);
 
-/* Upload rendered row to VRAM */
+/* Upload rendered tile row to VRAM */
 void raytracer_upload_row(uint8_t tile_row);
+
+/* Render single scanline (smoother visual feedback) */
+void raytracer_render_scanline(uint8_t py);
+
+/* Upload single scanline to VRAM */
+void raytracer_upload_scanline(uint8_t py);
 
 /* Initialize VRAM structures */
 void raytracer_init_vram(void);
