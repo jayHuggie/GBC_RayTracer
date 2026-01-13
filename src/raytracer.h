@@ -77,6 +77,9 @@ typedef int16_t fixed8_t;
  * FUNCTION DECLARATIONS
  *============================================================================*/
 
+/* Initialize LUTs and precomputed arrays (call once at startup) */
+void raytracer_init(void);
+
 /* Set camera angle for rendering (0=front, 64=right, 128=back, 192=left) */
 void raytracer_set_view(uint8_t view_id);
 

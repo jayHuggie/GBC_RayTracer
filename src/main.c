@@ -87,6 +87,9 @@ void main(void) {
     setup_palette_attributes();
     init_progress_tile();
     
+    /* Initialize raytracer LUTs and precomputed arrays */
+    raytracer_init();
+    
     DISPLAY_ON;
     
     /* Pre-render both views */
