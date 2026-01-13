@@ -22,7 +22,7 @@ static const uint16_t raytracer_palette[] = {
 static const uint16_t border_palette[] = {
     RGB8(8,   8,   16),    /* 0: Dark background */
     RGB8(255, 255, 255),   /* 1: White for text */
-    RGB8(24,  24,  48),    /* 2: Medium */
+    RGB8(100, 255, 100),   /* 2: Bright green (progress bar) */
     RGB8(40,  40,  80)     /* 3: Border fill */
 };
 

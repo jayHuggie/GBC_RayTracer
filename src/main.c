@@ -8,6 +8,7 @@
 #include <gb/gb.h>
 #include <gb/cgb.h>
 #include <stdint.h>
+#include <string.h>
 
 #include "graphics.h"
 #include "raytracer.h"
@@ -53,6 +54,16 @@ static void clear_progress(void) {
         bar[i] = TILE_BORDER;
     }
     set_bkg_tiles(0, PROGRESS_Y, PROGRESS_WIDTH, 1, bar);
+}
+
+static void clear_render_area(void) {
+    /* Clear all render tiles to empty/black */
+    uint8_t empty_tile[16];
+    memset(empty_tile, 0x00, 16);
+    
+    for (uint8_t i = 0; i < MAX_RENDER_TILES; i++) {
+        set_bkg_data(RENDER_TILE_BASE + i, 1, empty_tile);
+    }
 }
 
 /*============================================================================
@@ -105,6 +116,11 @@ void main(void) {
     
     /* Pre-render both views */
     render_view(VIEW_FRONT);
+    
+    /* Wipe screen before rendering second view */
+    wait_vbl_done();
+    clear_render_area();
+    
     render_view(VIEW_BACK);
     
     clear_progress();
