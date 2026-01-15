@@ -1,26 +1,37 @@
 # GBC RayTracer
 
-A minimal Game Boy Color homebrew ROM that renders a raytraced scene.
+A Game Boy Color homebrew ROM that renders a raytraced 3D scene with real-time shading and shadows.
 
-![Scene](https://img.shields.io/badge/Scene-Sphere%20%2B%20Ground-blue)
 ![Platform](https://img.shields.io/badge/Platform-Game%20Boy%20Color-green)
+![Resolution](https://img.shields.io/badge/Resolution-96×96-blue)
+![Views](https://img.shields.io/badge/Views-2%20Scenes-orange)
 
 ## Features
 
-- **One sphere** above a ground plane
-- **Lambert shading** on the sphere (light · normal diffuse lighting)
-- **Blob shadow** on the ground (projected circle shadow under sphere)
-- **4 brightness levels** using GBC palette
-- **48×48 pixel** render window (6×6 tiles)
-- **Runs on real hardware** at low FPS (rendering done once at boot)
+- **Title Screen** with colorful animated-style "CoLoR" text
+- **96×96 pixel** render window (12×12 tiles) - larger than typical GBC renders
+- **Lambert shading** with smooth dithered gradients on the sphere
+- **Soft shadows** with umbra (dark core) and penumbra (soft edge)
+- **2-view gallery** - switch between close and far views with D-pad
+- **Progress bar** shows rendering progress in real-time
+- **Runs on real hardware** - optimized for GBC's limited CPU
 
-## Scene Preview
+## Screenshots
 
 The ROM displays:
-- A shaded sphere with visible light falloff from Lambert shading
-- A checkered ground plane for visual interest
-- A circular shadow directly under the sphere
-- A dark blue border around the render window
+- A red shaded sphere with smooth Lambert lighting
+- A green ground plane
+- A realistic soft shadow with dark center and gradual falloff
+- Sky blue background
+- Dark border frame around the render window
+
+## Controls
+
+| Button | Action |
+|--------|--------|
+| **START / A** | Begin rendering (from title screen) |
+| **D-pad Down** | Switch to close view (large sphere) |
+| **D-pad Up** | Switch to far view (small sphere) |
 
 ## Building
 
@@ -40,23 +51,18 @@ make
 
 # Clean build artifacts
 make clean
-
-# Build with debug output
-make GBDK_DEBUG=ON
-
-# Use custom GBDK path
-make GBDK_HOME=/path/to/gbdk/
 ```
 
 ### Output
 
-The build produces `GBC_RayTracer.gbc`, a valid Game Boy Color ROM file.
+The build produces `GBC_RayTracer.gbc`, a valid Game Boy Color ROM file (~32KB).
 
 ## Running
 
 ### Emulators (Recommended for Development)
 
-- **BGB** (Windows) - Excellent debugging features
+- **Emulicious** - Excellent GBC debugging and accuracy
+- **BGB** (Windows) - Great debugging features
 - **SameBoy** (macOS/Linux/Windows) - Accurate GBC emulation
 - **mGBA** - Cross-platform, accurate
 
@@ -76,39 +82,51 @@ All calculations use 8.8 fixed-point arithmetic (16-bit signed integers with 8 f
 
 No floating point is used anywhere in the codebase.
 
+### Optimizations
+
+The raytracer uses several optimizations to achieve reasonable render times on GBC:
+
+1. **Lookup Tables (LUTs)** - Sphere intersection divisions replaced with 64-entry LUTs
+2. **Per-scanline precomputation** - Ground intersection calculated once per row
+3. **Precomputed dx/dy arrays** - Ray directions cached for all screen coordinates
+4. **Shadow brightness LUT** - Penumbra falloff via 128-entry table (no division)
+5. **Per-view shadow constants** - Shadow center precomputed once per scene
+6. **Scanline-by-scanline rendering** - Smooth visual feedback during render
+
 ### Ray Tracing Algorithm
 
-For each pixel in the 48×48 render window:
+For each pixel in the 96×96 render window:
 
 1. **Generate ray** from camera through pixel center
-2. **Intersect sphere** using quadratic formula
-3. **Intersect ground plane** at Y=0
+2. **Intersect sphere** using optimized LUT-based quadratic solver
+3. **Intersect ground plane** using precomputed scanline values
 4. **Shade hit point**:
-   - Sphere: Lambert diffuse = max(0, normal · light_dir)
-   - Ground: Checkerboard pattern + blob shadow check
+   - Sphere: Lambert diffuse with 2×2 Bayer dithering
+   - Ground: Solid color with soft shadow (umbra + penumbra)
+5. **Dither** brightness to 4-color palette
 
 ### Shadow Technique
 
-**Blob Shadow (Option B)** was chosen over true shadow rays because:
-1. **Simpler**: Just check if ground point is within projected radius
-2. **Faster**: No secondary ray-sphere intersection needed
-3. **Adequate**: Creates a visually clear circular shadow
-
-The shadow is computed by projecting the sphere center onto the ground and darkening pixels within the sphere's radius of that point.
+**Soft Blob Shadow** with realistic falloff:
+- **Umbra**: Dark core directly under sphere (25% of shadow radius)
+- **Penumbra**: Gradual falloff from umbra edge to full brightness
+- Shadow position calculated from light direction projection
 
 ### Tile-Based Rendering
 
 The GBC uses 8×8 pixel tiles. This raytracer:
-1. Pre-renders all 36 tiles (6×6 grid) at startup
-2. Uploads tile data to VRAM
-3. Sets up the tile map to display the render window
-4. Scene is static, so no per-frame updates needed
+1. Renders scanline-by-scanline with progress bar
+2. Uploads each scanline to VRAM during VBlank
+3. Stores completed scenes in RAM (2 views × 2304 bytes)
+4. Allows instant switching between pre-rendered views
 
 ### Memory Layout
 
-- **Tile Data**: 576 bytes (36 tiles × 16 bytes/tile)
-- **Tile Map**: 36 bytes
-- **Code + Data**: ~3-4KB total ROM
+- **Scene Buffer**: 4,608 bytes (2 views × 144 tiles × 16 bytes/tile)
+- **Tile Row Buffer**: 192 bytes (12 tiles × 16 bytes)
+- **LUTs**: ~500 bytes (sphere, shadow, dx/dy arrays)
+- **Title Screen**: ~2KB (tiles + map)
+- **Total ROM**: ~32KB
 
 ## File Structure
 
@@ -116,13 +134,17 @@ The GBC uses 8×8 pixel tiles. This raytracer:
 GBC_RayTracer/
 ├── Makefile              # Build configuration
 ├── README.md             # This file
+├── TitleScreen.png       # Title screen source image
+├── res/                  # Resources folder
 └── src/
-    ├── main.c            # Entry point, initialization
-    ├── raytracer.c       # Ray tracing and tile generation
+    ├── main.c            # Entry point, title screen, game loop
+    ├── raytracer.c       # Ray tracing, LUTs, scene rendering
     ├── raytracer.h       # Fixed-point math, scene config
-    ├── graphics.c        # Palette setup
-    ├── graphics.h        # Color definitions
-    └── util.h            # LCD control macros
+    ├── graphics.c        # Palette setup, color definitions
+    ├── graphics.h        # Graphics function declarations
+    ├── util.h            # LCD control macros
+    ├── TitleScreen.c     # Generated title screen tile data
+    └── TitleScreen.h     # Title screen declarations
 ```
 
 ## Scene Configuration
@@ -130,22 +152,48 @@ GBC_RayTracer/
 Edit `raytracer.h` to modify the scene:
 
 ```c
-/* Sphere position and size */
-#define SPHERE_X        INT_TO_FX8(0)   /* Center X */
-#define SPHERE_Y        INT_TO_FX8(2)   /* Height above ground */
-#define SPHERE_Z        INT_TO_FX8(6)   /* Distance from camera */
-#define SPHERE_RADIUS   INT_TO_FX8(2)   /* Size */
+/* Render window size */
+#define RENDER_WIDTH    96
+#define RENDER_HEIGHT   96
 
-/* Light direction (normalized) */
-#define LIGHT_DIR_X     (-128)          /* -0.5 */
-#define LIGHT_DIR_Y     (179)           /* ~0.7 */
-#define LIGHT_DIR_Z     (128)           /* 0.5 */
+/* Sphere position and size */
+#define SPHERE_CX       0   /* Center X */
+#define SPHERE_CY       2   /* Height above ground */
+#define SPHERE_CZ       6   /* Distance from camera */
+#define SPHERE_R        2   /* Radius */
+
+/* Light direction */
+#define LIGHT_X         (-128)  /* From left */
+#define LIGHT_Y         (179)   /* From above */
+#define LIGHT_Z         (128)   /* From front */
+
+/* Colors (palette indices) */
+#define COLOR_SHADOW    0   /* Dark purple */
+#define COLOR_SPHERE    1   /* Red */
+#define COLOR_GROUND    2   /* Green */
+#define COLOR_SKY       3   /* Sky blue */
 ```
+
+## Creating a Custom Title Screen
+
+1. Create a 160×144 PNG image (GBC screen size)
+2. Use indexed color mode with max 4 colors per 8×8 tile region
+3. Convert with png2asset:
+   ```bash
+   ~/gbdk/bin/png2asset TitleScreen.png -c TitleScreen.c -map -noflip
+   ```
+4. Move generated files to `src/` folder
+5. Adjust palette attributes in `main.c` if using multiple palettes
 
 ## License
 
 MIT License - See LICENSE file
 
+## Author
+
+**Jae Hyuk Lee**
+
 ## Credits
 
-Built with [GBDK-2020](https://github.com/gbdk-2020/gbdk-2020)
+- Built with [GBDK-2020](https://github.com/gbdk-2020/gbdk-2020)
+- Title screen created with [LibreSprite](https://libresprite.github.io/)
