@@ -1,15 +1,27 @@
 # GBC RayTracer
 
+![Platform](https://img.shields.io/badge/Platform-Game%20Boy%20Color-green)
+![Toolchain](https://img.shields.io/badge/Toolchain-GBDK--2020-orange)
+
 A Game Boy Color homebrew ROM that renders a raytraced 3D scene with real-time shading and shadows.
 
-![Platform](https://img.shields.io/badge/Platform-Game%20Boy%20Color-green)
-![Resolution](https://img.shields.io/badge/Resolution-96×96-blue)
-![Views](https://img.shields.io/badge/Views-2%20Scenes-orange)
+### *Actual Footage:*
+
+<img src="/scenes/live_demo.gif" alt="Live Demo" title="Live Demo" width="400"/>
+
+### *Emulator Footage:*
+
+<img src="/scenes/emulation_demo.gif" alt="Emulation Demo" title="Emulation Demo" width="400"/>
+
+
 
 ## Features
 
 - **Title Screen** with colorful animated-style "CoLoR" text
-- **96×96 pixel** render window (12×12 tiles) - larger than typical GBC renders
+  
+  <img src="/scenes/title_screen.png" alt="Title Screen" title="Title Screen" width="200"/>
+  
+- **96×96 pixel** render window (12×12 tiles)
 - **Lambert shading** with smooth dithered gradients on the sphere
 - **Soft shadows** with umbra (dark core) and penumbra (soft edge)
 - **2-view gallery** - switch between close and far views with D-pad
