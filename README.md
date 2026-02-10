@@ -1,7 +1,7 @@
 # GBC RayTracer
-
-![Platform](https://img.shields.io/badge/Platform-Game%20Boy%20Color-green)
-![Toolchain](https://img.shields.io/badge/Toolchain-GBDK--2020-orange)
+![Language](https://img.shields.io/badge/Language-C-00599C?style=for-the-badge)
+![Platform](https://img.shields.io/badge/Platform-Game%20Boy%20Color-00A9A5?style=for-the-badge)
+![Toolchain](https://img.shields.io/badge/Toolchain-GBDK--2020-FF6F00?style=for-the-badge)
 
 A Game Boy Color homebrew ROM that renders a raytraced 3D scene with real-time shading and shadows.
 
