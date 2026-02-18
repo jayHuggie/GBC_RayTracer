@@ -30,6 +30,8 @@ A Game Boy Color homebrew ROM that renders a raytraced 3D scene with real-time s
 
 ## Screenshots
 
+<img src="/scenes/scene_front.png" alt="Front Scene" title="Front Scene" width="250"/> <img src="/scenes/scene_back.png" alt="Back Scene" title="Back Scene" width="250"/>
+
 The ROM displays:
 - A red shaded sphere with smooth Lambert lighting
 - A green ground plane
@@ -71,18 +73,16 @@ The build produces `GBC_RayTracer.gbc`, a valid Game Boy Color ROM file (~32KB).
 
 ## Running
 
-### Emulators (Recommended for Development)
+### Recommended Emulators
 
-- **Emulicious** - Excellent GBC debugging and accuracy
-- **BGB** (Windows) - Great debugging features
-- **SameBoy** (macOS/Linux/Windows) - Accurate GBC emulation
-- **mGBA** - Cross-platform, accurate
+- [Emulicious](https://emulicious.net) - Multi-system emulator for Mac OS Windows, Linux, Raspberry Pi OS,
+- [BGB Emulator](https://bgb.bircd.org) - Hardware accurate *Windows Native* emulator
 
 ### Real Hardware
 
 Flash the `.gbc` file to a flash cart (e.g., EverDrive GB, EZ-Flash Jr.) and run on:
 - Game Boy Color
-- Game Boy Advance / SP (backwards compatible)
+- Game Boy Advance / SP
 
 ## Technical Details
 
